@@ -42,7 +42,7 @@ keeps 80+ docs, a public changelog, and a customer help centre honest.
 ## Install
 
 ```
-/plugin marketplace add Tom1981-cro/docs-autopilot
+/plugin marketplace add Relay-Labs-Ltd/docs-autopilot
 /plugin install docs-changelog-automation@docs-autopilot
 ```
 

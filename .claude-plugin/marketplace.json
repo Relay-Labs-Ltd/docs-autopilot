@@ -3,8 +3,8 @@
   "name": "docs-autopilot",
   "description": "Docs Autopilot — keep your docs and changelog in sync with your code: docs-drift agent, release-please, GitHub-release→changelog drafts. Human-gated, stack-aware, MIT.",
   "owner": {
-    "name": "Tom1981-cro",
-    "url": "https://github.com/Tom1981-cro"
+    "name": "Relay Labs Ltd",
+    "url": "https://github.com/Relay-Labs-Ltd"
   },
   "metadata": {
     "pluginRoot": "./plugins"

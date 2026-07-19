@@ -15,7 +15,7 @@ each time. Stack-aware:
 ## Install
 
 ```
-/plugin marketplace add Tom1981-cro/docs-autopilot
+/plugin marketplace add Relay-Labs-Ltd/docs-autopilot
 /plugin install docs-changelog-automation@docs-autopilot
 ```
 
