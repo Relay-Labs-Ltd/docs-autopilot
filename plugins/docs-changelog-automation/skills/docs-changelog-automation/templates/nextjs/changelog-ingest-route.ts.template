@@ -1,0 +1,126 @@
+import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
+import { prisma } from "@/lib/prisma"; // ADAPT: your Prisma client import
+
+/**
+ * POST /api/admin/changelog/ingest — machine ingress for the
+ * "GitHub release -> changelog draft" automation
+ * (.github/workflows/changelog-on-release.yml).
+ *
+ * A published GitHub Release POSTs its tag + notes here and we create a DRAFT
+ * changelog entry (publishedAt: null) for a human to review and publish.
+ * Authenticated by a dedicated shared secret (CHANGELOG_INGEST_SECRET),
+ * timing-safe, fails closed when unset. Idempotent per release version.
+ *
+ * REQUIRED Prisma model (add to schema.prisma if absent):
+ *   model ChangelogEntry {
+ *     id          String    @id @default(cuid())
+ *     version     String
+ *     date        DateTime
+ *     title       String
+ *     category    String    @default("New")
+ *     summary     String
+ *     highlight   Boolean   @default(false)
+ *     publishedAt DateTime?          // null = draft, hidden from the public page
+ *     createdAt   DateTime  @default(now())
+ *     updatedAt   DateTime  @updatedAt
+ *     @@unique([version, title])
+ *   }
+ */
+
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
+
+function authorized(req: Request): boolean {
+  const secret = process.env.CHANGELOG_INGEST_SECRET;
+  if (!secret) return false; // fail closed
+  const auth = req.headers.get("authorization");
+  if (auth && safeEqual(auth, `Bearer ${secret}`)) return true;
+  const header = req.headers.get("x-changelog-secret");
+  if (header && safeEqual(header, secret)) return true;
+  return false;
+}
+
+/** Collapse a GitHub release body to a short plain-text summary. */
+function toSummary(body: string): string {
+  return body
+    .replace(/\r/g, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^[-*]\s+/gm, "• ")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 4000);
+}
+
+export async function POST(req: Request) {
+  if (!process.env.CHANGELOG_INGEST_SECRET) {
+    return NextResponse.json(
+      { error: "Changelog ingest is not configured (CHANGELOG_INGEST_SECRET unset)" },
+      { status: 503 },
+    );
+  }
+  if (!authorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const p = (await req.json().catch(() => ({}))) as {
+    version?: string;
+    title?: string;
+    summary?: string;
+    body?: string;
+    url?: string;
+    category?: string;
+    highlight?: boolean;
+    date?: string;
+  };
+
+  const version = String(p.version ?? "").trim().slice(0, 40);
+  const title = String(p.title ?? "").trim().slice(0, 200);
+  const summary = toSummary(String(p.summary ?? p.body ?? "").trim());
+  if (!version || !title) {
+    return NextResponse.json(
+      { error: "version (tag) and title (release name) are required" },
+      { status: 400 },
+    );
+  }
+
+  const date = p.date ? new Date(p.date) : new Date();
+  if (Number.isNaN(date.getTime())) {
+    return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+  }
+
+  // Idempotency: one entry per release version.
+  const existing = await prisma.changelogEntry.findFirst({
+    where: { version },
+    select: { id: true, publishedAt: true },
+  });
+  if (existing) {
+    return NextResponse.json({ skipped: true, entry: existing }, { status: 200 });
+  }
+
+  const entry = await prisma.changelogEntry.create({
+    data: {
+      version,
+      date,
+      title,
+      category: String(p.category ?? "New").slice(0, 40),
+      summary: summary || `Release ${version}. Review and expand before publishing.`,
+      highlight: Boolean(p.highlight),
+      publishedAt: null, // draft — a human publishes it from admin
+    },
+  });
+
+  // ADAPT: record an audit-log line here if your app has one.
+
+  return NextResponse.json(
+    { entry: { id: entry.id, version: entry.version, title: entry.title, draft: true } },
+    { status: 201 },
+  );
+}

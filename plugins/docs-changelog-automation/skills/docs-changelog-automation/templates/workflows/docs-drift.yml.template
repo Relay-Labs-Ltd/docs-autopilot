@@ -1,0 +1,63 @@
+# Docs-drift agent — keeps documentation true to the code. Weekly (and on
+# demand) it diffs {{DEFAULT_BRANCH}} against the last synced commit recorded in
+# docs/.docs-sync, updates whatever drifted, and opens a PR for human review.
+# Requires the ANTHROPIC_API_KEY repo secret; without it the run exits quietly.
+name: Docs drift agent
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for API key
+        id: key
+        run: echo "present=${{ secrets.ANTHROPIC_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout {{DEFAULT_BRANCH}} (full history)
+        if: steps.key.outputs.present == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: {{DEFAULT_BRANCH}}
+          fetch-depth: 0
+
+      - name: Run Claude docs-maintenance agent
+        if: steps.key.outputs.present == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: "--allowedTools 'Bash(git:*),Bash(gh:*),Bash(npm run lint),Bash(npm run docs:manifest),Read,Grep,Glob,Edit,Write'"
+          prompt: |
+            You are the documentation-maintenance agent for {{APP_NAME}} (this repository).
+            Your job: keep the documentation ({{DOCS_SURFACES}}) true to the code.
+
+            1. Read docs/.docs-sync — it holds the last synced commit SHA on {{DEFAULT_BRANCH}}.
+               If it is missing or unreadable, use the merge-base of HEAD and HEAD~50 as the baseline.
+            2. Inspect what changed since then:
+               git log --oneline <SHA>..HEAD and git diff --stat <SHA>..HEAD.
+               Read the diffs for user-facing surfaces (routes/screens, schema,
+               feature libraries, integrations, and public/marketing pages).
+            3. For every user-facing change (new/changed screens, flows, features,
+               limits, settings), verify the docs still describe the product
+               truthfully. Update existing docs or add new ones — one topic per
+               doc, match the existing tone, keep any `updated` dates accurate.
+            4. For architecture or operational changes, update the matching
+               runbook/architecture note (e.g. AGENTS.md, docs/**). Document what
+               the diff actually shows; never invent history.
+            5. Write the current HEAD SHA into docs/.docs-sync (plain text, one line).
+               If a docs manifest script exists, refresh it: `npm run docs:manifest`.
+            6. Run `npm run lint` (if present) and fix any lint errors your edits introduced.
+            7. If NOTHING user-facing drifted, stop — make no commits and no PR.
+            8. Otherwise: create branch docs/drift-<YYYYMMDD>, commit everything with a
+               conventional message ("docs: sync documentation with recent changes"),
+               push it, and open a PR against {{DEFAULT_BRANCH}} with `gh pr create`
+               summarising each doc touched and the code change that motivated it.
+               Do not merge the PR.

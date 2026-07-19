@@ -1,0 +1,89 @@
+name: Changelog on release
+
+# GitHub Release -> public changelog (draft).
+#
+# When a Release is *published* on this repo, POST its tag + notes to the app's
+# machine-authenticated ingest route, which creates a DRAFT changelog entry for
+# a human to review and publish. Nothing goes live automatically.
+#
+# Pairs with release-please: you merge the Release PR when enough commits have
+# landed -> that publishes a Release -> this drafts the changelog entry. So it
+# only ever runs on a release you deliberately cut, never on every push.
+#
+# Setup (one-time):
+#   1. App env: CHANGELOG_INGEST_SECRET=<random 32+ char secret>.
+#   2. Repo Actions secret CHANGELOG_INGEST_SECRET (SAME value).
+#   3. Optional repo Actions variable CHANGELOG_BASE_URL (defaults below).
+#
+# Remove this workflow (and skip the ingest route) if the repo has no web app
+# to receive the changelog — release-please already maintains CHANGELOG.md and
+# the GitHub Release notes on their own.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to (re)send to the changelog"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send release to changelog ingest
+        env:
+          CHANGELOG_INGEST_SECRET: ${{ secrets.CHANGELOG_INGEST_SECRET }}
+          CHANGELOG_BASE_URL: ${{ vars.CHANGELOG_BASE_URL }}
+          # Release fields via env (never inline ${{ }} in the script — avoids
+          # shell injection from an attacker-controlled release body/title).
+          REL_TAG: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+          REL_NAME: ${{ github.event.release.name }}
+          REL_BODY: ${{ github.event.release.body }}
+          REL_URL: ${{ github.event.release.html_url }}
+          REL_DATE: ${{ github.event.release.published_at }}
+          REL_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CHANGELOG_INGEST_SECRET}" ]; then
+            echo "::error::CHANGELOG_INGEST_SECRET repo Actions secret is not set."
+            exit 1
+          fi
+
+          BASE="${CHANGELOG_BASE_URL:-{{PRODUCTION_URL}}}"
+          URL="${BASE%/}/api/admin/changelog/ingest"
+
+          TAG="${REL_TAG}"
+          TITLE="${REL_NAME:-$TAG}"
+
+          HIGHLIGHT=false
+          case "$TAG" in
+            *beta*|*rc*|*alpha*) HIGHLIGHT=true ;;
+            *.0.0) HIGHLIGHT=true ;;
+          esac
+          if [ "${REL_PRERELEASE}" = "true" ]; then HIGHLIGHT=true; fi
+
+          PAYLOAD=$(jq -n \
+            --arg version "$TAG" \
+            --arg title "$TITLE" \
+            --arg body "${REL_BODY:-}" \
+            --arg url "${REL_URL:-}" \
+            --arg date "${REL_DATE:-}" \
+            --argjson highlight "$HIGHLIGHT" \
+            '{version:$version, title:$title, body:$body, url:$url, date:($date|select(length>0)), highlight:$highlight}')
+
+          echo "POST ${URL}  (tag=${TAG}, highlight=${HIGHLIGHT})"
+          code=$(curl -sS -o /tmp/out.txt -w "%{http_code}" --retry 3 --retry-delay 5 \
+            -X POST \
+            -H "Authorization: Bearer ${CHANGELOG_INGEST_SECRET}" \
+            -H "Content-Type: application/json" \
+            --data "${PAYLOAD}" \
+            "${URL}")
+          echo "HTTP ${code}"
+          cat /tmp/out.txt
+          echo
+          [ "$code" -ge 200 ] && [ "$code" -lt 300 ]

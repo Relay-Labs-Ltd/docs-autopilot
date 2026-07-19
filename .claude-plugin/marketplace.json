@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "docs-autopilot",
+  "description": "Docs Autopilot — keep your docs and changelog in sync with your code: docs-drift agent, release-please, GitHub-release→changelog drafts. Human-gated, stack-aware, MIT.",
+  "owner": {
+    "name": "Tom1981-cro",
+    "url": "https://github.com/Tom1981-cro"
+  },
+  "metadata": {
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "docs-changelog-automation",
+      "source": "./plugins/docs-changelog-automation",
+      "description": "Drop documentation-drift + GitHub-release→changelog automation into any repo: reusable GitHub Actions, AGENTS.md conventions, and (for Next.js + Prisma apps) a Help Centre, Dev Docs viewer, and changelog ingest route.",
+      "category": "development",
+      "keywords": ["documentation", "changelog", "release", "github-actions", "release-please", "automation"]
+    }
+  ]
+}

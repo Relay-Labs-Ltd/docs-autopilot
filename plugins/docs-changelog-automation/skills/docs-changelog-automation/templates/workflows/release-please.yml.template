@@ -1,0 +1,24 @@
+name: release-please
+
+# Watches commits on {{RELEASE_BRANCH}} and keeps an open Release PR proposing
+# the next SemVer (from Conventional Commits) and updating CHANGELOG.md. Merging
+# that PR is your sign-off — it then tags the release (which the changelog
+# workflow reacts to). You never get a surprise version bump.
+
+on:
+  push:
+    branches: [{{RELEASE_BRANCH}}]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

@@ -1,0 +1,14 @@
+{
+  "name": "docs-changelog-automation",
+  "displayName": "Docs & Changelog Automation",
+  "version": "1.0.0",
+  "description": "Install documentation-drift + GitHub-release→changelog automation into any repo. Stack-aware: portable GitHub Actions and AGENTS.md conventions everywhere; a Help Centre, Dev Docs viewer, and changelog ingest route for Next.js + Prisma apps.",
+  "author": {
+    "name": "Tom1981-cro",
+    "url": "https://github.com/Tom1981-cro"
+  },
+  "homepage": "https://github.com/Tom1981-cro/docs-autopilot",
+  "repository": "https://github.com/Tom1981-cro/docs-autopilot",
+  "license": "MIT",
+  "keywords": ["documentation", "changelog", "release", "github-actions", "release-please", "automation"]
+}
