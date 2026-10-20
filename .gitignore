@@ -1,0 +1,3 @@
+dist/
+tests/.rendered-*
+node_modules/

@@ -1,0 +1,40 @@
+name: CI
+
+# Proves the plugin ships what it claims: manifests validate, every template
+# renders without leftover placeholders and passes actionlint, and the
+# release-notes renderer's tests pass.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Install actionlint
+        run: |
+          bash <(curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          sudo mv ./actionlint /usr/local/bin/actionlint
+
+      - name: Validate plugin manifests
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude plugin validate .
+          claude plugin validate plugins/docs-changelog-automation
+
+      - name: Render and lint templates
+        run: bash scripts/check-templates.sh
+
+      - name: Unit tests
+        run: node --test

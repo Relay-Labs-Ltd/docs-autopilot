@@ -40,7 +40,7 @@ Summarise the detected stack in one short paragraph, then map it to a tier:
 
 | Tier | When | What gets installed |
 |---|---|---|
-| **Core** | every repo | `docs-drift.yml`, `changelog-on-release.yml`, `release-please.yml` + configs, AGENTS.md conventions block, `gen-docs-manifest` script + npm script |
+| **Core** | every repo | `docs-drift.yml`, `changelog-on-release.yml`, `release-please.yml` + configs, AGENTS.md conventions block, `gen-docs-manifest` script + npm script, `public-release-notes.mjs` (customer-facing release-note renderer, optional) |
 | **Web UI** | Next.js (App Router) **and** the user wants public docs/changelog surfaces | Core **plus** changelog **ingest route** (if Prisma) and a recipe to scaffold the Help Centre + Dev Docs viewer |
 | **Mobile/Service** | Expo/RN, workers, non-JS | Core only. No web Help Centre. Changelog automation still applies (targets the app's ingest endpoint if it has one, otherwise maintains `CHANGELOG.md` + GitHub Releases via release-please) |
 
@@ -53,6 +53,10 @@ Infer as much as possible; only ask when you genuinely can't. Collect:
 - `RELEASE_BRANCH` — where release-please watches (usually `main`).
 - `DOCS_SURFACES` — which user-facing doc sources the drift agent should keep
   true (e.g. `docs/**`, a Help Centre path, a README). Default: `docs/**` + `README.md`.
+- `DRIFT_MODEL` — the Claude model the docs-drift agent runs on. Default
+  `claude-sonnet-5-5` (drafting work, human-reviewed before it lands);
+  offer `claude-opus-5-5` for teams that want the strongest reconciliation.
+  The run is also capped at 120 turns as a cost circuit-breaker.
 - Whether to install the **Web UI** tier (only offer for Next.js).
 
 Present the plan (files to create/modify + secrets the user must add) and get a
@@ -78,6 +82,22 @@ go-ahead before writing.
    piece — it tells future agents the docs discipline to follow.
 5. **Docs-sync baseline** → create `docs/.docs-sync` containing the current
    `git rev-parse HEAD` so the drift agent has a starting point.
+6. **Public release-note renderer** (recommended when the changelog workflow
+   has somewhere to post) → `templates/scripts/public-release-notes.mjs.template`
+   → `scripts/release-notes/public-release-notes.mjs`. `changelog-on-release.yml`
+   runs it when present: release-please's engineering changelog (SHA-stamped,
+   scope-prefixed, often duplicated across branches) becomes one
+   customer-facing note before it is sent. Idempotent; never rewrites a note a
+   person edited. Skip for repos with no changelog surface.
+
+How the three workflows chain — and why `release-please.yml` dispatches the
+other two instead of relying on events: a GitHub Release created with the
+workflow's own `GITHUB_TOKEN` does **not** fire `release: published`
+(GitHub's anti-recursion rule), so a hand-rolled setup silently never drafts
+a changelog. The template dispatches `changelog-on-release.yml` and
+`docs-drift.yml` explicitly on `release_created`; `docs-drift.yml` lists
+`allowed_bots: "github-actions"` because `claude-code-action` refuses
+bot-initiated runs otherwise. Keep both when adapting.
 
 ## Step 4 — Install the Web UI tier (Next.js only, on request)
 
@@ -99,19 +119,31 @@ Read `references/nextjs-surfaces.md` and follow it. In brief:
 The automation is inert until the user adds secrets/vars. End with an explicit
 checklist (adapt to what you installed):
 
+- **Workflow permissions** — Settings → Actions → General → Workflow
+  permissions → tick *Allow GitHub Actions to create and approve pull
+  requests*. Without it release-please pushes its branch but the "open the
+  PR" call is refused (an org-level setting of the same name overrides the
+  repo one). Nothing is lost; flip it and re-run.
+- **`RELEASE_PLEASE_TOKEN`** (recommended) — repo Actions secret: a PAT with
+  `repo` scope or a GitHub App token. A Release PR opened by `GITHUB_TOKEN`
+  gets no `pull_request` CI runs; one opened by a PAT does. The workflow
+  falls back to `GITHUB_TOKEN` when unset.
 - **`ANTHROPIC_API_KEY`** — repo Actions secret. Without it the docs-drift agent
   exits quietly (no error).
 - **`CHANGELOG_INGEST_SECRET`** — repo Actions secret **and** the app's env
-  (same value), only if the Web UI ingest route was installed. The workflow
-  fails loudly if the secret is set but the endpoint rejects it.
+  (same value), only if the Web UI ingest route was installed. Unset, the
+  workflow skips itself with a notice; set but rejected by the endpoint, it
+  fails loudly (a 401 usually means middleware in front of the route, not a
+  wrong secret).
 - **`CHANGELOG_BASE_URL`** — optional repo Actions *variable*; defaults to the
   production URL you set in the workflow.
 - **Branch protection** — if `release-please`/CI checks should gate merges, add
   them under Settings → Branches.
 - **First run** — `release-please` opens a Release PR on the next push to the
-  release branch; merging it publishes a Release, which triggers the changelog
-  draft. Nothing publishes automatically — a human reviews the changelog draft
-  and hits Publish.
+  release branch; merging it publishes a Release, which dispatches the
+  changelog draft and a docs-drift reconciliation tagged with the version.
+  Nothing publishes automatically — a human reviews the changelog draft and
+  hits Publish, and reviews the docs PR like any other.
 
 ## Placeholders
 
@@ -125,9 +157,11 @@ Every template uses `{{DOUBLE_BRACE}}` placeholders. Substitute all of them:
 | `{{DOCS_SURFACES}}` | Doc sources the drift agent maintains | `docs/**, README.md` |
 | `{{PRODUCTION_URL}}` | Base URL the changelog workflow posts to | `https://veritome.eu` |
 | `{{HELP_ARTICLES_PATH}}` | Where Help Centre articles live (Next.js) | `src/lib/help/articles` |
+| `{{DRIFT_MODEL}}` | Model the docs-drift agent runs on | `claude-sonnet-5-5` |
 
-After substitution, grep the installed files for `{{` to confirm none were
-missed.
+After substitution, run `grep -rnE '\{\{[A-Z_]+\}\}'` over the installed files
+to confirm none were missed. (A plain `grep '{{'` false-positives on every
+`${{ }}` GitHub Actions expression — match the uppercase placeholder shape.)
 
 ## Design principles
 

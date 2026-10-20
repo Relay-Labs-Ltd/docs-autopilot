@@ -17,8 +17,9 @@ Work through its steps in order:
 4. **Print the setup checklist** (`ANTHROPIC_API_KEY`, `CHANGELOG_INGEST_SECRET`,
    branch protection, first-release flow).
 
-Substitute every `{{PLACEHOLDER}}` in the templates and grep for leftover `{{`
-before finishing. Never auto-publish anything; keep the human gates (draft
+Substitute every `{{PLACEHOLDER}}` in the templates and run
+`grep -rnE '\{\{[A-Z_]+\}\}'` over the installed files before finishing (a bare
+`{{` matches every `${{ }}` Actions expression — match the placeholder shape). Never auto-publish anything; keep the human gates (draft
 changelog entries + the release-please Release PR). If a target file already
 exists, show a diff and merge rather than clobbering it.
 

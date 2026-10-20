@@ -2,22 +2,32 @@ name: Changelog on release
 
 # GitHub Release -> public changelog (draft).
 #
-# When a Release is *published* on this repo, POST its tag + notes to the app's
-# machine-authenticated ingest route, which creates a DRAFT changelog entry for
-# a human to review and publish. Nothing goes live automatically.
+# When a Release is published on this repo, fetch its notes and POST them to
+# the app's machine-authenticated ingest route, which creates a DRAFT changelog
+# entry for a human to review and publish. Nothing goes live automatically.
 #
-# Pairs with release-please: you merge the Release PR when enough commits have
-# landed -> that publishes a Release -> this drafts the changelog entry. So it
-# only ever runs on a release you deliberately cut, never on every push.
+# Two ways in, and both carry the FULL release notes:
+#   - `release: published` — a human-published release, or one cut with a PAT
+#     (RELEASE_PLEASE_TOKEN).
+#   - `workflow_dispatch` — release-please.yml hands the new tag over here when
+#     it cuts a release (a GITHUB_TOKEN-created release never fires the event
+#     above). Also your manual backfill: Actions → Changelog on release →
+#     Run workflow → tag.
+#   Only the TAG comes from the trigger; everything else is fetched from the
+#   GitHub API by tag, so a dispatched run never sends an empty body.
+#
+# Optional: if scripts/release-notes/public-release-notes.mjs exists (the
+# installer offers it), release-please's engineering changelog is rewritten
+# into a customer-facing note before it is sent — one public format, no
+# commit SHAs, no internal scopes, duplicates collapsed.
 #
 # Setup (one-time):
 #   1. App env: CHANGELOG_INGEST_SECRET=<random 32+ char secret>.
 #   2. Repo Actions secret CHANGELOG_INGEST_SECRET (SAME value).
 #   3. Optional repo Actions variable CHANGELOG_BASE_URL (defaults below).
 #
-# Remove this workflow (and skip the ingest route) if the repo has no web app
-# to receive the changelog — release-please already maintains CHANGELOG.md and
-# the GitHub Release notes on their own.
+# Without the secret this workflow does nothing and says so — release-please
+# already maintains CHANGELOG.md and the GitHub Release notes on their own.
 
 on:
   release:
@@ -31,35 +41,76 @@ on:
 permissions:
   contents: read
 
+# The release event and release-please's dispatch can both fire for one tag.
+# Run them one after the other: the ingest is idempotent per version, so the
+# second is a no-op.
+concurrency:
+  group: changelog-on-release-${{ github.event.release.tag_name || github.event.inputs.tag }}
+  cancel-in-progress: false
+
 jobs:
   ingest:
     runs-on: ubuntu-latest
     steps:
+      - name: Check for ingest secret
+        id: secret
+        run: echo "present=${{ secrets.CHANGELOG_INGEST_SECRET != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip — ingest secret not configured
+        if: steps.secret.outputs.present != 'true'
+        run: echo "::notice title=Changelog ingest skipped::CHANGELOG_INGEST_SECRET is not set, so nothing was sent. release-please still maintains CHANGELOG.md and the GitHub Release notes."
+
+      - uses: actions/checkout@v7
+        if: steps.secret.outputs.present == 'true'
+        with:
+          persist-credentials: false
+
       - name: Send release to changelog ingest
+        if: steps.secret.outputs.present == 'true'
         env:
           CHANGELOG_INGEST_SECRET: ${{ secrets.CHANGELOG_INGEST_SECRET }}
           CHANGELOG_BASE_URL: ${{ vars.CHANGELOG_BASE_URL }}
-          # Release fields via env (never inline ${{ }} in the script — avoids
-          # shell injection from an attacker-controlled release body/title).
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          APP_NAME: "{{APP_NAME}}"
+          # Release fields reach the shell as env/data, never inline ${{ }} in
+          # the script — a release title or body is attacker-influenced text.
           REL_TAG: ${{ github.event.release.tag_name || github.event.inputs.tag }}
-          REL_NAME: ${{ github.event.release.name }}
-          REL_BODY: ${{ github.event.release.body }}
-          REL_URL: ${{ github.event.release.html_url }}
-          REL_DATE: ${{ github.event.release.published_at }}
-          REL_PRERELEASE: ${{ github.event.release.prerelease }}
         run: |
           set -euo pipefail
-          if [ -z "${CHANGELOG_INGEST_SECRET}" ]; then
-            echo "::error::CHANGELOG_INGEST_SECRET repo Actions secret is not set."
+          if [ -z "${REL_TAG}" ]; then
+            echo "::error::No release tag resolved from the event or dispatch input."
             exit 1
           fi
+
+          # Fetch the release by tag so both trigger paths ingest identical,
+          # complete data. jq parses what gh returns — the notes never touch
+          # the shell as code.
+          REL_JSON=$(gh release view "${REL_TAG}" --repo "${GH_REPO}" \
+            --json tagName,name,body,url,publishedAt,isPrerelease)
+
+          TAG=$(printf '%s' "$REL_JSON" | jq -r '.tagName')
+          TITLE=$(printf '%s' "$REL_JSON" | jq -r '.name // .tagName')
+          printf '%s' "$REL_JSON" | jq -r '.body // ""' > "$RUNNER_TEMP/release-body.md"
+
+          # Customer-facing rewrite when the renderer is installed; otherwise
+          # the release body goes through as-is. The renderer is idempotent and
+          # leaves a hand-edited body untouched.
+          if [ -f scripts/release-notes/public-release-notes.mjs ]; then
+            node scripts/release-notes/public-release-notes.mjs "${TAG}" \
+              < "$RUNNER_TEMP/release-body.md" > "$RUNNER_TEMP/public-note.md"
+          else
+            cp "$RUNNER_TEMP/release-body.md" "$RUNNER_TEMP/public-note.md"
+          fi
+          BODY=$(cat "$RUNNER_TEMP/public-note.md")
+          REL_URL=$(printf '%s' "$REL_JSON" | jq -r '.url // ""')
+          REL_DATE=$(printf '%s' "$REL_JSON" | jq -r '.publishedAt // ""')
+          REL_PRERELEASE=$(printf '%s' "$REL_JSON" | jq -r '.isPrerelease')
 
           BASE="${CHANGELOG_BASE_URL:-{{PRODUCTION_URL}}}"
           URL="${BASE%/}/api/admin/changelog/ingest"
 
-          TAG="${REL_TAG}"
-          TITLE="${REL_NAME:-$TAG}"
-
+          # Highlight notable releases: prereleases (beta/rc) and .0.0 majors.
           HIGHLIGHT=false
           case "$TAG" in
             *beta*|*rc*|*alpha*) HIGHLIGHT=true ;;
@@ -67,23 +118,28 @@ jobs:
           esac
           if [ "${REL_PRERELEASE}" = "true" ]; then HIGHLIGHT=true; fi
 
+          # Build the JSON body with jq so every field is properly escaped.
           PAYLOAD=$(jq -n \
             --arg version "$TAG" \
             --arg title "$TITLE" \
-            --arg body "${REL_BODY:-}" \
-            --arg url "${REL_URL:-}" \
-            --arg date "${REL_DATE:-}" \
+            --arg body "$BODY" \
+            --arg url "$REL_URL" \
+            --arg date "$REL_DATE" \
             --argjson highlight "$HIGHLIGHT" \
             '{version:$version, title:$title, body:$body, url:$url, date:($date|select(length>0)), highlight:$highlight}')
 
           echo "POST ${URL}  (tag=${TAG}, highlight=${HIGHLIGHT})"
-          code=$(curl -sS -o /tmp/out.txt -w "%{http_code}" --retry 3 --retry-delay 5 \
+          code=$(curl -sS -o "$RUNNER_TEMP/out.txt" -w "%{http_code}" --retry 3 --retry-delay 5 \
             -X POST \
             -H "Authorization: Bearer ${CHANGELOG_INGEST_SECRET}" \
             -H "Content-Type: application/json" \
             --data "${PAYLOAD}" \
             "${URL}")
           echo "HTTP ${code}"
-          cat /tmp/out.txt
+          cat "$RUNNER_TEMP/out.txt"
           echo
+          # 2xx = created or idempotent-skip; both are success. A 401 here
+          # usually means something upstream (middleware, proxy) rejected the
+          # request before the route ran — rule that out before chasing the
+          # secret value.
           [ "$code" -ge 200 ] && [ "$code" -lt 300 ]

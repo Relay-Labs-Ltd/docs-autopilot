@@ -2,23 +2,95 @@ name: release-please
 
 # Watches commits on {{RELEASE_BRANCH}} and keeps an open Release PR proposing
 # the next SemVer (from Conventional Commits) and updating CHANGELOG.md. Merging
-# that PR is your sign-off — it then tags the release (which the changelog
-# workflow reacts to). You never get a surprise version bump.
+# that PR is your sign-off — it then tags the release and publishes a GitHub
+# Release. You never get a surprise version bump.
+#
+# ── Two things GitHub will NOT do for you (both handled here) ───────────────
+#
+# 1. A Release created with the workflow's own GITHUB_TOKEN does NOT start
+#    `release: published` workflows (GitHub's anti-recursion rule). Left alone,
+#    changelog-on-release.yml would never run on the normal path. So when a
+#    release is cut, this workflow DISPATCHES it explicitly — a
+#    `workflow_dispatch` IS started by GITHUB_TOKEN. The same hand-off starts
+#    the docs-drift agent, so every version gets a docs reconciliation tied to
+#    it instead of waiting for the weekly run.
+#
+# 2. "GitHub Actions is not permitted to create or approve pull requests" is a
+#    repository switch, not a bug in this file:
+#      Settings → Actions → General → Workflow permissions
+#        ☑ Allow GitHub Actions to create and approve pull requests
+#    (an ORG-level setting of the same name overrides the repo one). The
+#    alternative — and worth setting even if the switch is on — is the
+#    RELEASE_PLEASE_TOKEN secret: a PAT with `repo` scope or a GitHub App
+#    token. A Release PR opened by GITHUB_TOKEN gets NO `pull_request` CI runs
+#    (same anti-recursion rule); one opened by a PAT does.
+#
+# Nothing is lost while either is misconfigured: release-please computes the
+# version, writes CHANGELOG.md and pushes its branch before the refused "open
+# the PR" call, so flipping the switch and re-running picks up where it stopped.
 
 on:
   push:
     branches: [{{RELEASE_BRANCH}}]
+  # On-demand run from the Actions tab (e.g. to produce the first Release PR
+  # without waiting for the next push).
   workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
+  # Needed to dispatch changelog-on-release.yml / docs-drift.yml below.
+  actions: write
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
+        id: release
         with:
+          # Falls back to GITHUB_TOKEN, so this works unchanged when the repo
+          # switch above is on. See the block comment at the top.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # Hand the new tag to changelog-on-release.yml (see point 1 above). The
+      # ingest route is idempotent per version, and changelog-on-release.yml
+      # serialises runs per tag, so a PAT-created release that ALSO fires the
+      # `release: published` event does no harm.
+      - name: Dispatch changelog draft for the new release
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          echo "Release ${TAG} created — dispatching changelog-on-release."
+          gh workflow run changelog-on-release.yml \
+            --repo "${GH_REPO}" \
+            --ref {{RELEASE_BRANCH}} \
+            -f tag="${TAG}"
+
+      # Same hand-off, different target: reconcile the docs against the code
+      # that just shipped. Deliberately NON-FATAL — by now the tag exists and
+      # the Release is published; a docs run failing to START is not a reason
+      # to red a release that already happened. It warns instead.
+      - name: Dispatch docs-drift reconciliation for the new release
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          set -uo pipefail
+          echo "Release ${TAG} created — dispatching docs-drift."
+          if gh workflow run docs-drift.yml \
+               --repo "${GH_REPO}" \
+               --ref {{RELEASE_BRANCH}} \
+               -f tag="${TAG}"; then
+            echo "docs-drift dispatched for ${TAG}."
+          else
+            echo "::warning title=docs-drift not dispatched::Could not start the docs-drift agent for ${TAG}. The release itself is fine — run Actions → Docs drift agent manually to reconcile the docs."
+          fi

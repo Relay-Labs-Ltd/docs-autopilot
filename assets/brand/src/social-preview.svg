@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="Docs Autopilot — docs and changelog that keep up with your code">
+  <!-- GitHub social preview / Open Graph cover. Blue on Paper, the brand-guidelines
+       cover composition: tint bars bleeding off the right, headline with the turn,
+       brand bar on the bottom edge (social and covers), company lockup in the
+       footer. The LOCKUP_BLUE token below is replaced with the supplied Relay Labs
+       lockup by scripts/render-brand.mjs, so the wordmark is never retyped. -->
+  <rect width="1280" height="640" fill="#FAFAF8"/>
+  <g fill="#EDF0FF" transform="translate(872 -48) scale(5.2)">
+    <polygon points="29,0 55,0 26,81 0,81"/>
+    <polygon points="65,19 90,19 61,100 35,100"/>
+  </g>
+
+  <!-- Product lockup, top-left -->
+  <g fill="#204EEA" transform="translate(72 64) scale(0.36)">
+    <polygon points="29,0 55,0 26,81 0,81"/>
+    <polygon points="65,19 90,19 61,100 35,100"/>
+  </g>
+  <text x="122" y="94" font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif" font-weight="700" font-size="32" letter-spacing="-1.1" fill="#17201B">Docs <tspan fill="#204EEA">Autopilot.</tspan></text>
+  <text x="1208" y="92" text-anchor="end" font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="12" letter-spacing="1.6" fill="#6A7169">CLAUDE CODE PLUGIN · GITHUB ACTIONS · MIT</text>
+
+  <!-- Headline: Ink sets up, Blue lands it. -->
+  <text font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif" font-weight="700" font-size="84" letter-spacing="-3.8" fill="#17201B">
+    <tspan x="72" y="272">Docs and changelog that</tspan>
+    <tspan x="72" y="350">keep up <tspan fill="#204EEA">with your code.</tspan></tspan>
+  </text>
+
+  <text x="72" y="416" font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="22" fill="#3C453E">A human-gated loop: Release PR → Release → changelog draft → docs PR. Nothing publishes itself.</text>
+
+  <!-- Slash bullets -->
+  <g font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="17" fill="#17201B">
+    <text x="72" y="476"><tspan fill="#204EEA" font-weight="700">//</tspan><tspan dx="10">Human gates stay</tspan></text>
+    <text x="330" y="476"><tspan fill="#204EEA" font-weight="700">//</tspan><tspan dx="10">Fails closed and quiet</tspan></text>
+    <text x="624" y="476"><tspan fill="#204EEA" font-weight="700">//</tspan><tspan dx="10">Adapts to your repo</tspan></text>
+  </g>
+
+  <!-- Footer: company lockup + URL -->
+  {{LOCKUP_BLUE}}
+  <text x="1208" y="588" text-anchor="end" font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="14" fill="#6A7169">github.com/Relay-Labs-Ltd/docs-autopilot</text>
+
+  <!-- Brand bar -->
+  <rect x="0" y="634" width="1280" height="6" fill="#204EEA"/>
+</svg>

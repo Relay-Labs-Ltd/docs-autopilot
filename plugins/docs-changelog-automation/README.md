@@ -38,6 +38,11 @@ protection). Also included: `/changelog` to draft public entries from commits.
   release-please Release PR.
 - **Break an unconfigured repo.** Every workflow no-ops quietly when its secret
   is unset.
+- **Rely on events GitHub never sends.** A release cut with `GITHUB_TOKEN`
+  does not fire `release: published`, so `release-please.yml` dispatches the
+  changelog draft and the docs-drift run explicitly when a release is cut.
+- **Run up a bill.** The docs-drift agent runs on a pinned model with a hard
+  120-turn cap.
 
 ## Design
 

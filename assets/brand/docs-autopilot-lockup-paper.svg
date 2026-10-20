@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 72" width="640" height="72" role="img" aria-label="Docs Autopilot by Relay Labs">
+  <!-- Paper on Blue: covers, card fronts, social. No turn on a Blue ground — the
+       whole name, full stop included, is Paper. -->
+  <rect width="640" height="72" fill="#204EEA"/>
+  <g fill="#FAFAF8" transform="translate(0 14) scale(0.44)">
+    <polygon points="29,0 55,0 26,81 0,81"/>
+    <polygon points="65,19 90,19 61,100 35,100"/>
+  </g>
+  <text x="60" y="50" font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif" font-weight="700" font-size="40" letter-spacing="-1.4" fill="#FAFAF8">Docs Autopilot.</text>
+  <text x="640" y="47" text-anchor="end" font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="12" letter-spacing="1.6" fill="#C9D2F5">BY RELAY LABS</text>
+</svg>
