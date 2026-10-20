@@ -34,6 +34,13 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Any workflow that dispatches this one with GITHUB_TOKEN (e.g.
+          # release-please kicking off a docs reconciliation for a new tag) runs
+          # as github-actions[bot], and the action refuses a run whose triggering
+          # actor is a bot unless that bot is listed here. Without this line every
+          # such dispatch fails at the actor check before the agent starts.
+          # Kept to that one bot, never "*".
+          allowed_bots: "github-actions"
           claude_args: "--allowedTools 'Bash(git:*),Bash(gh:*),Bash(npm run lint),Bash(npm run docs:manifest),Read,Grep,Glob,Edit,Write'"
           prompt: |
             You are the documentation-maintenance agent for {{APP_NAME}} (this repository).
