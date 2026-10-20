@@ -1,10 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 72" width="640" height="72" role="img" aria-label="Docs Autopilot by Relay Labs">
-  <!-- Relay ⫽ mark (never redrawn) + DOCS in Archivo + Autopilot in Instrument Serif italic. -->
-  <g transform="translate(0 12) scale(1.5)">
-    <path d="M8 28 L17 4 L24 4 L15 28 Z" fill="#141310"/>
-    <path d="M19 28 L28 4 L35 4 L26 28 Z" fill="#FF5C38"/>
+  <!-- Product lockup, Blue on Paper (the default colourway). The mark is the supplied
+       Relay Labs geometry (two bars at 19.7°, right bar dropped a quarter) — never
+       redrawn. Name in Helvetica Neue Bold, sentence case, ending in a full stop;
+       the turn lands on "Autopilot." in Relay Blue. -->
+  <g fill="#204EEA" transform="translate(0 14) scale(0.44)">
+    <polygon points="29,0 55,0 26,81 0,81"/>
+    <polygon points="65,19 90,19 61,100 35,100"/>
   </g>
-  <text x="76" y="54" font-family="Archivo, 'Inter', system-ui, sans-serif" font-weight="850" font-size="46" letter-spacing="-1.6" fill="#141310" font-stretch="112%">DOCS</text>
-  <text x="250" y="54" font-family="'Instrument Serif', Georgia, serif" font-style="italic" font-weight="400" font-size="50" fill="#141310">Autopilot</text>
-  <text x="640" y="22" text-anchor="end" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="11" letter-spacing="1.3" fill="#141310" fill-opacity="0.55">RELAY LABS ⫽ PLUGIN</text>
+  <text x="60" y="50" font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif" font-weight="700" font-size="40" letter-spacing="-1.4" fill="#17201B">Docs <tspan fill="#204EEA">Autopilot.</tspan></text>
+  <text x="640" y="47" text-anchor="end" font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="12" letter-spacing="1.6" fill="#6A7169">BY RELAY LABS</text>
 </svg>
