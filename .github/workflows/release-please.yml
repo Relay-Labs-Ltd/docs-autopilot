@@ -1,0 +1,29 @@
+name: release-please
+
+# Dogfood: this repo versions itself with the same release-please flow the
+# plugin installs elsewhere. Merging the Release PR bumps the plugin's
+# version (plugin.json via extra-files), writes CHANGELOG.md and tags vX.Y.Z.
+#
+# If this fails with "GitHub Actions is not permitted to create or approve
+# pull requests", flip Settings → Actions → General → Workflow permissions →
+# "Allow GitHub Actions to create and approve pull requests", or set the
+# RELEASE_PLEASE_TOKEN secret (a PAT with `repo` scope).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

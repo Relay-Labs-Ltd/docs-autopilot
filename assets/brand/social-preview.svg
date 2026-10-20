@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="Docs Autopilot — docs and changelog that keep up with your code">
+  <!-- Paper ground, faint 72px grid, hairline rules, one signal accent. -->
+  <defs>
+    <pattern id="grid" width="72" height="72" patternUnits="userSpaceOnUse">
+      <path d="M72 0H0V72" fill="none" stroke="#141310" stroke-opacity="0.08" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1280" height="640" fill="#F4F1E9"/>
+  <rect width="1280" height="640" fill="url(#grid)"/>
+
+  <!-- Kicker -->
+  <text x="72" y="92" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="15" letter-spacing="2.1" fill="#141310" fill-opacity="0.55">001 ⫽ CLAUDE CODE PLUGIN ⫽ GITHUB ACTIONS ⫽ RELEASE-PLEASE</text>
+
+  <!-- Mark -->
+  <g transform="translate(64 128) scale(3)">
+    <path d="M8 28 L17 4 L24 4 L15 28 Z" fill="#141310"/>
+    <path d="M19 28 L28 4 L35 4 L26 28 Z" fill="#FF5C38"/>
+  </g>
+
+  <!-- Title -->
+  <text x="200" y="224" font-family="Archivo, 'Inter', system-ui, sans-serif" font-weight="850" font-size="136" letter-spacing="-5.5" fill="#141310" font-stretch="112%">DOCS</text>
+  <text x="672" y="224" font-family="'Instrument Serif', Georgia, serif" font-style="italic" font-weight="400" font-size="142" fill="#141310">Autopilot</text>
+
+  <!-- Statement -->
+  <text x="72" y="318" font-family="Archivo, 'Inter', system-ui, sans-serif" font-weight="700" font-size="34" letter-spacing="-0.8" fill="#141310">DOCS AND CHANGELOG THAT KEEP UP WITH YOUR CODE.</text>
+  <text x="72" y="360" font-family="Archivo, 'Inter', system-ui, sans-serif" font-weight="400" font-size="22" fill="#141310" fill-opacity="0.7">A human-gated loop: Conventional Commits → Release PR → GitHub Release → changelog draft → docs PR.</text>
+
+  <!-- The loop as a numbered mono strip -->
+  <line x1="72" y1="416" x2="1208" y2="416" stroke="#141310" stroke-opacity="0.2"/>
+  <g font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="14" letter-spacing="1.7" fill="#141310">
+    <text x="72" y="456" fill-opacity="0.55">01</text><text x="72" y="482">COMMIT</text>
+    <text x="300" y="456" fill-opacity="0.55">02</text><text x="300" y="482">RELEASE PR</text>
+    <text x="528" y="456" fill-opacity="0.55">03</text><text x="528" y="482">RELEASE</text>
+    <text x="756" y="456" fill-opacity="0.55">04</text><text x="756" y="482">CHANGELOG DRAFT</text>
+    <text x="984" y="456" fill-opacity="0.55">05</text><text x="984" y="482">DOCS PR</text>
+  </g>
+  <g fill="#FF5C38">
+    <circle cx="254" cy="477" r="4"/><circle cx="482" cy="477" r="4"/><circle cx="710" cy="477" r="4"/><circle cx="938" cy="477" r="4"/>
+  </g>
+  <line x1="72" y1="516" x2="1208" y2="516" stroke="#141310" stroke-opacity="0.2"/>
+
+  <!-- Footer -->
+  <text x="72" y="580" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="14" letter-spacing="1.7" fill="#141310" fill-opacity="0.55">HUMAN GATES STAY ⫽ FAILS QUIET ⫽ ADAPTS TO YOUR REPO</text>
+  <text x="1208" y="580" text-anchor="end" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="14" letter-spacing="1.7" fill="#141310" fill-opacity="0.55">RELAY LABS ⫽ MIT</text>
+</svg>

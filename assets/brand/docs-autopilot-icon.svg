@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Docs Autopilot">
+  <!-- Ink square, Relay ⫽ mark in the on-dark colourway (paper + signal). Square edges: the rule. -->
+  <rect width="512" height="512" fill="#141310"/>
+  <g transform="translate(96 112) scale(8)">
+    <path d="M8 28 L17 4 L24 4 L15 28 Z" fill="#F4F1E9"/>
+    <path d="M19 28 L28 4 L35 4 L26 28 Z" fill="#FF5C38"/>
+  </g>
+  <!-- Document hint: three hairline rules under the mark, as a page of text. -->
+  <g fill="#F4F1E9" fill-opacity="0.55">
+    <rect x="96" y="392" width="320" height="6"/>
+    <rect x="96" y="420" width="224" height="6"/>
+    <rect x="96" y="448" width="272" height="6"/>
+  </g>
+</svg>
